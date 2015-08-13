@@ -4,6 +4,7 @@ import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.Id;
 import javax.persistence.ManyToOne;
+import java.io.File;
 import java.util.Date;
 
 @Entity
@@ -19,6 +20,8 @@ public class Vote {
     @Column(columnDefinition = "LONGTEXT")
     private String name;
     private String resText;
+    private String url;
+    private File file;
 
     public Integer getId() {
         return id;

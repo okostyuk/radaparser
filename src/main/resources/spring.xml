@@ -19,20 +19,10 @@
     <context:component-scan base-package="com.oleg.rada" />
     <data:repositories base-package="com.oleg.rada.persistance.rep" />
 
-    <bean id="sessionFactory"
-          class="org.springframework.orm.hibernate4.LocalSessionFactoryBean"
-          p:dataSource-ref="dataSourceMysql"
-          p:packagesToScan="com.oleg.rada.persistance">
-        <property name="hibernateProperties">
-            <props>
-                <prop key="hibernate.hbm2ddl.auto">update</prop>
-            </props>
-        </property>
 
-    </bean>
 
     <bean id="entityManagerFactory" class="org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean">
-        <property name="dataSource" ref="dataSourceMysql" />
+        <property name="dataSource" ref="dataSourceH2" />
         <property name="packagesToScan" value="com.oleg.rada.persistance" />
         <property name="jpaVendorAdapter">
             <bean class="org.springframework.orm.jpa.vendor.HibernateJpaVendorAdapter" />
@@ -43,7 +33,8 @@
                 <prop key="hibernate.dialect">
                     <!--org.hibernate.dialect.HSQLDialect-->
                     <!--com.oleg.rada.SQLiteDialect-->
-                    org.hibernate.dialect.MySQLDialect
+                    <!--org.hibernate.dialect.MySQLDialect-->
+                    org.hibernate.dialect.H2Dialect
                 </prop>
             </props>
         </property>
@@ -70,15 +61,34 @@
         <property name="password" value="" />
     </bean>
 
+    <bean id="dataSourceH2" class="org.springframework.jdbc.datasource.DriverManagerDataSource">
+        <property name="driverClassName" value="org.h2.Driver" />
+        <property name="url" value="jdbc:h2:file:H:/src/radaparser/testH2.db;MV_STORE=FALSE" />
+    </bean>
 
     <bean id="transactionManager" class="org.springframework.orm.jpa.JpaTransactionManager">
         <property name="entityManagerFactory" ref="entityManagerFactory" />
     </bean>
 
+<!--
+
+    <bean id="sessionFactory"
+          class="org.springframework.orm.hibernate4.LocalSessionFactoryBean"
+          p:dataSource-ref="dataSourceMysql"
+          p:packagesToScan="com.oleg.rada.persistance">
+        <property name="hibernateProperties">
+            <props>
+                <prop key="hibernate.hbm2ddl.auto">update</prop>
+            </props>
+        </property>
+    </bean>
+
+
+
 
     <bean id="txManager" class="org.springframework.orm.hibernate4.HibernateTransactionManager">
         <property name="sessionFactory" ref="sessionFactory" />
     </bean>
-    
 
+-->
 </beans>

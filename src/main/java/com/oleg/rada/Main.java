@@ -2,7 +2,9 @@ package com.oleg.rada;
 
 import com.oleg.rada.persistance.*;
 import com.oleg.rada.persistance.rep.*;
+import org.jsoup.nodes.Document;
 import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
@@ -12,18 +14,30 @@ import java.util.*;
 public class Main {
     static RadaHtmlParser parser = new RadaHtmlParser();
 
-    static ApplicationContext context = new FileSystemXmlApplicationContext("C:\\src\\rada\\src\\main\\resources\\spring.xml");
+    static ApplicationContext context = new ClassPathXmlApplicationContext("spring.xml");
     static LawRepository lawRepository  = context.getBean(LawRepository.class);
     static MPRepository mpRepository = context.getBean(MPRepository.class);
     static RadaSessionDayRepository  radaSessionDayRepository = context.getBean(RadaSessionDayRepository.class);
     static VoteRepository  voteRepository = context.getBean(VoteRepository.class);
     static VoteResultPerository  voteResultPerository = context.getBean(VoteResultPerository.class);
     static RadaSessionRepository radaSessionRepository = context.getBean(RadaSessionRepository.class);
+    static PageRepository pageRepository = context.getBean(PageRepository.class);
 
+    public static void main(String[] args) throws Exception {
 
-    public static void main(String[] args) throws IOException {
+        parser.setPageRepository(pageRepository);
 
-        Iterable<RadaSession> sessions = radaSessionRepository.findAll();
+        List<RadaSession> sessions = parser.getSessions();
+        sessions.size();
+        radaSessionRepository.save(sessions);
+        for (RadaSession session : sessions){
+            List<RadaSessionDay> days = parser.getSessionDays(session);
+            radaSessionDayRepository.save(days);
+            session.setDays(days);
+            radaSessionRepository.save(session);
+        }
+
+        /*Iterable<RadaSession> sessions = radaSessionRepository.findAll();
         Iterable<RadaSessionDay> days = radaSessionDayRepository.findWithUrl();
 
         for (RadaSessionDay day : days){
@@ -33,7 +47,7 @@ public class Main {
             System.out.println(s.getSklikanya() + "\t" + s.getsName() + "\t" + day + laws.size());
             lawRepository.save(laws);
             radaSessionDayRepository.save(day);
-        }
+        }*/
 
         //parseSessionsAndSaveToDB();
         //parseLawsAndSaveToDB();
@@ -87,7 +101,7 @@ public class Main {
 
     }
 
-    private static void parseLawsAndSaveToDB() throws IOException {
+    private static void parseLawsAndSaveToDB() throws Exception {
         //Iterable<RadaSession> sessions = readSessionsFromDB();
         Iterable<RadaSessionDay> days = radaSessionDayRepository.findWithUrl();
         for (RadaSessionDay day : days){
@@ -127,7 +141,7 @@ public class Main {
         return radaSessionRepository.findAll();
     }
 
-    private static void parseSessionsAndSaveToDB() throws IOException {
+    private static void parseSessionsAndSaveToDB() throws Exception {
         List<RadaSession> sessions = parser.getSessions();
 
         for (RadaSession session : sessions){
@@ -140,7 +154,7 @@ public class Main {
         }
     }
 
-    private static void loadVotesResults() throws IOException {
+    private static void loadVotesResults() throws Exception {
 
         Integer[] voteIds = {3771};
         Iterable<Vote> votes = voteRepository.findAll(Arrays.asList(voteIds));
@@ -155,7 +169,7 @@ public class Main {
         System.out.println((445*4) + " results.size() = " + results.size());
     }
 
-    private static void loadMP() throws IOException {
+    private static void loadMP() throws Exception {
         String voteResUrl = "http://w1.c1.rada.gov.ua/pls/radan_gs09/ns_golos_print?g_id=6385&vid=1";
         List<MP> listMP = parser.getMP(voteResUrl);
         System.out.println(listMP.size());

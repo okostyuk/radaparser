@@ -1,13 +1,14 @@
 package com.oleg.rada;
 
 import com.oleg.rada.persistance.*;
+import com.oleg.rada.persistance.rep.PageRepository;
 import org.jsoup.Connection;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
-import java.io.IOException;
+import java.io.*;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
@@ -17,9 +18,12 @@ import java.util.*;
  */
 public class RadaHtmlParser {
 
-    public List<String> getLawLinksByDayUrl(String url) throws IOException {
+    private static final String USER_AGENT = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:32.0) Gecko/20100101 Firefox/32.0";
+    private PageRepository pageRepository;
+
+    public List<String> getLawLinksByDayUrl(String url) throws Exception {
         List<String> val = new ArrayList<String>();
-        Document doc = Jsoup.connect("http://iportal.rada.gov.ua" + url).get();
+        Document doc = getDocument("http://iportal.rada.gov.ua" + url);
 
         Elements es = doc.getElementsByTag("a");
         for (Element e : es){
@@ -30,9 +34,9 @@ public class RadaHtmlParser {
         return val;
     }
 
-    public List<String> getDayLinksBySessionUrl(String sessionUrl) throws IOException {
+    public List<String> getDayLinksBySessionUrl(String sessionUrl) throws Exception {
         List<String> val = new ArrayList<String>();
-        Document doc = Jsoup.connect(sessionUrl).get();
+        Document doc = getDocument(sessionUrl);
 
         //Elements es = doc.getElementsByClass("b_yellow");
         Elements es = doc.getElementsByClass("calendar_list");
@@ -49,10 +53,9 @@ public class RadaHtmlParser {
 
     public static Document doc;
 
-    public List<Law> loadLawsForDayTest(String url) throws IOException{
+    public List<Law> loadLawsForDayTest(String url) throws Exception{
         List<Law> laws = new ArrayList<Law>();
-        Connection c = Jsoup.connect(url).timeout(10000);
-        doc = c.get();
+        doc = getDocument(url);
         Elements tables = doc.getElementsByClass("MsoNormalTable");
         if (tables.size() == 0)
             tables = doc.getElementsByTag("table");
@@ -88,23 +91,23 @@ public class RadaHtmlParser {
         return laws;
     }
 
-    public List<Law> loadLawsForDay(RadaSessionDay day) throws IOException {
+    public List<Law> loadLawsForDay(RadaSessionDay day) throws Exception {
         if (day.getUrl() == null || day.getUrl().isEmpty())
             return Collections.emptyList();
         return loadLawsForDayTest("http://iportal.rada.gov.ua" + day.getUrl());
     }
 
-    public String getVoteResultLink(String lawLink) throws IOException {
-        Document doc = Jsoup.connect(lawLink).get();
+    public String getVoteResultLink(String lawLink) throws Exception {
+        Document doc = getDocument(lawLink);
         Elements tabs = doc.getElementsByClass("tabs_block");
         Element e = tabs.get(0).getElementsByTag("li").last();
         return e.getElementsByTag("a").first().attr("href");
     }
 
     static SimpleDateFormat voteDateFormat = new SimpleDateFormat("dd.MM.yyyy HH:mm:ss");
-    public List<Vote> getVotesByLaw(Law law) throws IOException {
+    public List<Vote> getVotesByLaw(Law law) throws Exception {
         List<Vote> votes = new ArrayList<Vote>();
-        Document doc = Jsoup.connect("http://w1.c1.rada.gov.ua" + law.getVoteResultLink()).get();
+        Document doc = getDocument("http://w1.c1.rada.gov.ua" + law.getVoteResultLink());
         Element table = doc.getElementById("gol_v");
         Elements rows = table.getElementsByTag("li");
         for (Element row : rows){
@@ -129,9 +132,9 @@ public class RadaHtmlParser {
         return votes;
     }
 
-    public List<MP> getMP(String voteResUrl) throws IOException {
+    public List<MP> getMP(String voteResUrl) throws Exception {
         List<MP> res = new ArrayList<MP>();
-        Document doc = Jsoup.connect(voteResUrl).get();
+        Document doc = getDocument(voteResUrl);
         Element table = doc.getElementsByTag("table").get(1);
         Elements rows = table.getElementsByTag("tr");
         String fraction = "";
@@ -167,14 +170,14 @@ public class RadaHtmlParser {
         return res;
     }
 
-    public List<VoteResult> getVoteResults(Iterable<Vote> voteList, Map<String, MP> mpMap) throws IOException {
+    public List<VoteResult> getVoteResults(Iterable<Vote> voteList, Map<String, MP> mpMap) throws Exception {
         List<VoteResult> res = new ArrayList<VoteResult>();
         StringBuilder sb = new StringBuilder();
         sb.append("http://w1.c1.rada.gov.ua/pls/radan_gs09/ns_zakon_gol_dep_list?zn=");
         for (Vote vote : voteList){
             sb.append("$").append(vote.getId());
         }
-        Document doc = Jsoup.connect(sb.toString()).get();
+        Document doc = getDocument(sb.toString());
         Elements tables = doc.getElementsByClass("tab_gol");
         Element table = tables.get(1);
         Elements rows = table.getElementsByTag("tr");
@@ -213,11 +216,10 @@ public class RadaHtmlParser {
 
     }
 
-    public List<RadaSession> getSessions() throws IOException {
+    public List<RadaSession> getSessions() throws Exception {
         List<RadaSession> sessions = new ArrayList<RadaSession>();
-        Document doc = Jsoup.connect("http://iportal.rada.gov.ua/meeting/awt/53")
-                .userAgent("Mozilla/5.0 (Windows NT 6.1; WOW64; rv:32.0) Gecko/20100101 Firefox/32.0")
-                .timeout(10000).get();
+        Document doc = getDocument("http://iportal.rada.gov.ua/meeting/awt/53");
+
         RadaSession session = new RadaSession();
         session.setUrl("/meeting/awt/53");
         session.setSklikanya("VII скликання");
@@ -230,20 +232,27 @@ public class RadaHtmlParser {
 
         parseSessionLinks(sessions, calendar);
         for (RadaSession s : sessions){
-            try {
-                Thread.sleep(1000);
-            } catch (InterruptedException e) {}
+
             parseSessionData(s);
         }
         return sessions;
     }
 
-    private void parseSessionData(RadaSession s) throws IOException {
+    private void parseSessionData(RadaSession s) throws Exception {
         System.out.println(s.getId());
-        Document doc = Jsoup.connect("http://iportal.rada.gov.ua" + s.getUrl()).get();
+        Document doc = getDocument("http://iportal.rada.gov.ua" + s.getUrl());
         Element calendar = doc.getElementsByClass("b_calendar").first();
         String name = calendar.getElementsByTag("h3").first().text();
         s.setName(name);
+
+        //List<RadaSessionDay> days = getSessionDays(s);
+    }
+
+    public List<RadaSessionDay> getSessionDays(RadaSession s) throws Exception{
+        List<RadaSessionDay> daysList = new ArrayList<RadaSessionDay>();
+
+        Document doc = getDocument("http://iportal.rada.gov.ua" + s.getUrl());
+        Element calendar = doc.getElementsByClass("b_calendar").first();
 
         Element calendarList = calendar.getElementsByClass("calendar_list").first();
         String monthName = null;
@@ -258,7 +267,6 @@ public class RadaHtmlParser {
                     continue;
                 }
 
-
                 RadaSessionDay radaDay =  new RadaSessionDay();
                 radaDay.setMonth(monthName);
                 radaDay.setType(day.attr("class"));
@@ -268,9 +276,11 @@ public class RadaHtmlParser {
                 Element url = day.getElementsByTag("a").first();
                 if (url != null)
                     radaDay.setUrl(url.attr("href"));
-                s.addDay(radaDay);
+                daysList.add(radaDay);
             }
         }
+
+        return daysList;
     }
 
     private void parseSessionLinks(List<RadaSession> sessions, Element calendar) {
@@ -289,5 +299,59 @@ public class RadaHtmlParser {
                 sessions.add(session);
             }
         }
+    }
+
+    public static String sanitizeFilename(String name) {
+        return name.replaceAll("[:\\\\/*?|<>]", "_");
+    }
+
+    public Document getDocument(String url) throws Exception{
+        return getDocument(url, 10000);
+    }
+
+    private Document getDocument(String url, int timeout) throws Exception{
+        Document doc = null;
+        try{
+            doc = Jsoup.parse(pageRepository.findOne(url).getFile(), "UTF-8");
+        }catch (Exception ex){
+            ex.printStackTrace();
+        }
+        if (doc == null){
+            doc = Jsoup.connect(url).userAgent(USER_AGENT).timeout(timeout).get();
+            try {
+                Thread.sleep(1000);
+            } catch (InterruptedException e) {}
+            File file = saveDocToFile(doc, url);
+            if (pageRepository != null){
+                Page page = pageRepository.findOne(url);
+                if (page == null){
+                    page = new Page();
+                    page.setUrl(url);
+                }
+                page.setFile(file);
+                page.setFilePath(file.getPath());
+                page.setFileContent(doc.outerHtml());
+                pageRepository.save(page);
+            }
+        }
+        return doc;
+    }
+
+    private File saveDocToFile(Document doc, String url) throws Exception{
+        String filename = sanitizeFilename(url+".html");
+        File file = new File("htmlCache/"+filename);
+        BufferedWriter htmlWriter = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file), "UTF-8"));
+        htmlWriter.write(doc.toString());
+        htmlWriter.flush();
+        htmlWriter.close();
+        return file;
+    }
+
+    public void setPageRepository(PageRepository pageRepository) {
+        this.pageRepository = pageRepository;
+    }
+
+    public PageRepository getPageRepository() {
+        return pageRepository;
     }
 }
